@@ -1,0 +1,3 @@
+#!/bin/bash
+# Test the post-commit hook
+echo "Post-commit hook executed at $(date)"

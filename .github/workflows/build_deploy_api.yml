@@ -1,0 +1,65 @@
+
+# Restore and Build ConfigManagerApp.API 
+
+name: Build & Deploy ConfigManagerApp API
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+env:
+  AZURE_WEBAPP_NAME: "ConfigurationManager"
+  AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore ./Service/ConfigManagerApp.API
+
+    - name: Build
+      run: dotnet build ./Service/ConfigManagerApp.API --configuration Release --no-restore
+
+    - name: Run Tests
+      run: dotnet test ./Service/ConfigManagerApp.Tests --configuration Release --no-restore
+
+    #Publish ConfigManagerApp.API
+    - name: Publish ConfigManagerApp API
+      run: dotnet publish ./Service/ConfigManagerApp.API --configuration Release --output ./publish
+
+    - name: Upload publish folder
+      uses: actions/upload-artifact@v4
+      with:
+        name: publish
+        path: publish
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download publish folder
+      uses: actions/download-artifact@v4
+      with:
+        name: publish
+        path: publish
+
+    #Deploy ConfigManagerApp.API to Azure App Service
+    - name: Deploy ConfigManagerApp API to Azure App Service
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        package: ./publish
+        publish-profile: ${{ env.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        #publish-dir: ./publish
+
